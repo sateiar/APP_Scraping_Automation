@@ -1,0 +1,19 @@
+# Airflow core and specific providers
+apache-airflow==2.5.1
+apache-airflow-providers-amazon==3.3.0
+
+# YAML parsing and JSON handling
+PyYAML==6.0
+json5==0.9.6
+
+# AWS and Spark-related packages
+boto3==1.26.28
+pyspark==3.3.0
+
+# Web scraping dependencies
+beautifulsoup4==4.11.1
+requests==2.28.1
+fake-useragent==0.1.11
+
+# Other essential packages
+pathlib==1.0.1
