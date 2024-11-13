@@ -1,0 +1,160 @@
+dag:
+  dag_id: app-categorization-full-cycle
+  schedule_interval: '0 2 12 * *'  # Runs daily at 02:00 UTC on the 12th day of each month
+  tags: ['app', 'categorization', 'segmentation']
+  catchup: false
+  default_args:
+    owner: airflow
+    depends_on_past: false
+    start_date: '2023-07-10T00:00:00'
+    email: DS-Ops-Delivery@ada-asia.com
+    email_on_failure: true
+    email_on_retry: false
+    http_conn_id: 'teams_notification_webhook'
+
+# EMR Configuration
+emr_release: 'emr-5.31.0'
+emr_log_path: 's3://aws-logs-331041401449-us-east-1/elasticmapreduce/'
+emr_packages: 'org.apache.spark:spark-avro_2.11:2.4.6,org.apache.hadoop:hadoop-aws:2.10.1'
+emr_bootstrap:
+  - Name: app_category_bootstrap
+    ScriptBootstrapAction:
+      Path: "s3://ada-prod-ml/bootstrap/app_bootstrap.sh"
+
+# EC2 Configuration
+ec2_key: &ec2_key 'emr_key'
+ec2_subnet: &ec2_subnet
+  - subnet-ea341ba1  # AZ: us-east-1a
+  - subnet-88c0a8d5  # AZ: us-east-1b
+  - subnet-513ee536  # AZ: us-east-1c
+
+# Security Groups
+service_sg: &service_sg 'sg-6ef90a18'
+slave_sg: &slave_sg 'sg-4c8c7f3a'
+master_sg: &master_sg 'sg-19f6056f'
+
+# Cluster Configuration
+cluster_config: &cluster_config
+  - Classification: spark-env
+    Properties: {}
+    Configurations:
+      - Classification: export
+        Properties:
+          PYSPARK_PYTHON: "/usr/bin/python3"
+
+# Instance Fleet Configurations
+large:
+  instance_type:
+    Ec2KeyName: *ec2_key
+    Ec2SubnetIds: *ec2_subnet
+    InstanceFleets:
+      - Name: Masterfleet
+        InstanceFleetType: MASTER
+        TargetOnDemandCapacity: 1
+        InstanceTypeConfigs:
+          - InstanceType: "m6g.xlarge"
+      - Name: Corefleet
+        InstanceFleetType: CORE
+        TargetSpotCapacity: 25
+        LaunchSpecifications:
+          SpotSpecification:
+            TimeoutDurationMinutes: 10
+            TimeoutAction: SWITCH_TO_ON_DEMAND
+        InstanceTypeConfigs:
+          - InstanceType: "m6g.4xlarge"
+            BidPriceAsPercentageOfOnDemandPrice: 85
+    TerminationProtected: false
+    KeepJobFlowAliveWhenNoSteps: false
+    ServiceAccessSecurityGroup: *service_sg
+    EmrManagedSlaveSecurityGroup: *slave_sg
+    EmrManagedMasterSecurityGroup: *master_sg
+  cluster_config: *cluster_config   
+  instance_setting:
+    num-executors: '120'
+    driver-memory: '32G'
+    driver-cores: '5'
+    executor-memory: '32G'
+    executor-cores: '5'
+
+large-spot:
+  instance_type:
+    Ec2KeyName: *ec2_key
+    Ec2SubnetIds: *ec2_subnet
+    InstanceFleets:
+      - Name: Masterfleet
+        InstanceFleetType: MASTER
+        TargetSpotCapacity: 1
+        LaunchSpecifications:
+          SpotSpecification:
+            TimeoutDurationMinutes: 30
+            TimeoutAction: SWITCH_TO_ON_DEMAND
+        InstanceTypeConfigs:
+          - InstanceType: "m6g.xlarge"
+            BidPriceAsPercentageOfOnDemandPrice: 85
+      - Name: Corefleet
+        InstanceFleetType: CORE
+        TargetSpotCapacity: 10
+        LaunchSpecifications:
+          SpotSpecification:
+            TimeoutDurationMinutes: 30
+            TimeoutAction: SWITCH_TO_ON_DEMAND
+        InstanceTypeConfigs:
+          - InstanceType: "m6g.2xlarge"
+            BidPriceAsPercentageOfOnDemandPrice: 85
+      - Name: Taskfleet
+        InstanceFleetType: TASK
+        TargetSpotCapacity: 5
+        LaunchSpecifications:
+          SpotSpecification:
+            TimeoutDurationMinutes: 30
+            TimeoutAction: SWITCH_TO_ON_DEMAND
+        InstanceTypeConfigs:
+          - InstanceType: "m6g.2xlarge"
+            BidPriceAsPercentageOfOnDemandPrice: 85
+    TerminationProtected: false
+    KeepJobFlowAliveWhenNoSteps: false
+    ServiceAccessSecurityGroup: *service_sg
+    EmrManagedSlaveSecurityGroup: *slave_sg
+    EmrManagedMasterSecurityGroup: *master_sg
+  cluster_config: *cluster_config
+
+# Tags for EMR
+emr_tag:
+  - Key: Environment
+    Value: Production
+  - Key: Department
+    Value: DataProducts-ML
+  - Key: Name
+    Value: app-segmentation
+  - Key: Engineer
+    Value: DS-Ops-Delivery@ada-asia.com
+  - Key: JiraNo
+    Value: DS-524
+  - Key: Project
+    Value: AI-MLOps
+  - Key: OrcaOptOut
+    Value: Yes
+
+# EMR Roles
+ServiceRole: EMR_ServiceRole
+JobFlowRole: EMR_EC2_ADARole
+
+# Athena Configuration
+athena_database: 'ada_business_insights'
+athena_output: 's3://ada-prod-ml/data/app_category/ref/athena/'
+athena_workgroup: 'business-insights'
+table_persona_v1: 'ref_personas'
+table_persona_v2: 'ref_personas_v2'
+
+# S3 Path for Scripts
+S3_PATH_CODE: 's3://ada-prod-ml/release/ada-mlops-pipeline/app-categorization/spark/'
+
+# Project Data Paths
+project_data:
+  input_agg: 's3://ada-prod-data/etl/data/brq/agg/agg_brq/daily/'
+  app_list_file: 's3://ada-prod-ml/data/app_category/results/'
+  app_list_file_not_found: 's3://ada-prod-ml/data/app_category/app_list/'
+  scrap_result: 's3://ada-prod-ml/data/app_category/scrap_result/'
+  ref_app_path: 's3a://ada-prod-ml/ref/app_crawler/ref_app_v24.csv'
+  ref_persona_path: 's3a://ada-prod-ml/ref/app_crawler/ref_persona_rank.csv'
+  temp_result: 's3://ada-prod-ml/data/app_category/segment/'
