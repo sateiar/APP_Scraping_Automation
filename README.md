@@ -1,4 +1,4 @@
-# App Categorization and Segmentation Data Pipeline
+# App Scraping and Categorization Automation Pipeline
 
 This repository contains an Apache Airflow DAG for the daily aggregation, categorization, and segmentation of app data. The pipeline is configured to run on Amazon EMR, with processing results stored in an Amazon S3 data lake. Additional processes, including web scraping and data transformation, are integrated into the DAG.
 
