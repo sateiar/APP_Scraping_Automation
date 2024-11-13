@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-# Copyright (c) 2019 AxiataADA
-"""
-This DAG performs daily aggregation of raw data and stores it in the data lake (S3).
-"""
 
 import os
 import json
