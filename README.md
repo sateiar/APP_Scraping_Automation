@@ -9,8 +9,7 @@ This repository contains an Apache Airflow DAG for the daily aggregation, catego
 - [Configuration](#configuration)
 - [requirements.txt](#requirementstxt)
 - [Running the Pipeline](#running-the-pipeline)
-- [License](#license)
-- [Contributing](#contributing)
+
 
 ## Project Overview
 The Airflow DAG defined in this repository:
